@@ -8,6 +8,81 @@ Using on diffusion data sf-mouse is a nextflow pipeline based on [nf-neuro](http
 
 It incorporates essential steps: denoising, corrections of some artefacts, registration to a template (Allen Mouse Brain Atlas), the DTI and QBall reconstructions, extraction of some metrics, until constructing a whole brain tractogram of the mouse brain and extracting some bundles. It is capable of adapting the resolution of the atlas according to the native data, for better anatomical alignment.
 
+## Optional topup and eddy correction
+
+The existing single-direction eddy correction remains the default. To estimate
+susceptibility distortion from a reverse-phase acquisition and apply it with
+eddy, enable `--run_topup`; `run_eddy` must also be enabled.
+
+For each subject, use the existing forward DWI and gradient filenames and add
+the reverse image and, optionally, acquisition sidecars beside them. There
+must be exactly one forward DWI and gradient pair per subject directory:
+
+```text
+input/
+  subject1/
+    sample_dwi.nii.gz
+    sample_dwi.bval
+    sample_dwi.bvec
+    sample_dwi.json               # optional if forward defaults are provided
+    sample_dwi_reverse.nii.gz
+    sample_dwi_reverse.json       # optional if reverse defaults are provided
+    sample_dwi_reverse.bval       # optional, with the corresponding bvec
+    sample_dwi_reverse.bvec       # optional, with the corresponding bval
+```
+
+The reverse basename is the forward DWI basename followed by `_reverse`.
+When both reverse gradient files are present, topup extracts and averages the
+reverse b0 volumes using `b0_threshold`. Without either gradient file, the
+reverse image must contain **only b0 volumes**, which topup averages. This
+assumption cannot be checked without gradients. The forward b0 is extracted
+and averaged using the same threshold. Reverse DWI volumes are used to estimate
+the field, not concatenated into the DWI passed to eddy; the corrected DWI and
+rotated gradients therefore correspond to the forward acquisition.
+
+Each BIDS-like sidecar contains the phase-encoding direction in NIfTI image
+coordinates and the total readout time in seconds, for example:
+
+```json
+{"PhaseEncodingDirection": "j", "TotalReadoutTime": 0.01536}
+```
+
+The reverse sidecar for this example uses `"j-"` and the same readout time.
+The installed nf-neuro/scilpy implementation supports forward `i`, `j`, or
+`k`, an exactly opposite reverse direction, and a single shared readout time.
+Negative forward directions and unequal readout times are rejected. Scilpy
+writes readout times to four decimal places; a warning is emitted if the
+specified value will be rounded. Readout times below 0.00005 seconds are
+rejected. These files are BIDS-like, not full BIDS
+discovery.
+
+When a sidecar is absent, its direction and readout time must both be provided
+as defaults. A present but invalid or incomplete sidecar is an error, not a
+reason to use defaults. For example:
+
+```bash
+nextflow run main.nf -profile docker --input /path/to/input --run_topup \
+  --topup_forward_phase_encoding j --topup_forward_readout 0.01536 \
+  --topup_reverse_phase_encoding j- --topup_reverse_readout 0.01536
+```
+
+Defaults are applied independently to missing forward and reverse sidecars,
+and their use is logged by subject. `--topup_config` selects a configuration
+available inside the topup container (default `b02b0.cnf`);
+`--topup_run_qc false` disables the new QC visualizations. Topup intermediate
+images are published when `lean_output` is disabled; corrected gradient files
+follow the existing preprocessed-gradient naming convention. CPU/GPU selection
+uses the existing `use_gpu` setting and profiles. Use representative acquisition
+metadata rather than copying the example values above.
+
+The focused tests are run with `python -m unittest discover -s test/topup -v`
+in an environment with Nextflow, NumPy and nibabel. Set
+`SFMOUSE_REAL_TOPUP_TEST=1` to also run a synthetic topup/eddy integration test
+with Docker and the pinned `scilus/scilus:2.2.2` image. A representative
+paired acquisition remains necessary to assess correction quality.
+The installed eddy module carries a small local patch so fractional NaN
+percentages trigger its existing warning and cleanup.
+
 
 ### Documentation:
 --------------
