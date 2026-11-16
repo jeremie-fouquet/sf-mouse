@@ -98,6 +98,43 @@
                 }
             }
         },
+        "topup_options": {
+            "title": "Topup acquisition options",
+            "type": "object",
+            "description": "Fallback acquisition parameters used only when a subject's corresponding JSON sidecar is absent.",
+            "properties": {
+                "topup_forward_phase_encoding": {
+                    "type": "string",
+                    "enum": ["i", "j", "k"],
+                    "description": "Forward BIDS PhaseEncodingDirection."
+                },
+                "topup_forward_readout": {
+                    "type": "number",
+                    "minimum": 0.00005,
+                    "description": "Forward TotalReadoutTime in seconds."
+                },
+                "topup_reverse_phase_encoding": {
+                    "type": "string",
+                    "enum": ["i-", "j-", "k-"],
+                    "description": "Reverse BIDS PhaseEncodingDirection."
+                },
+                "topup_reverse_readout": {
+                    "type": "number",
+                    "minimum": 0.00005,
+                    "description": "Reverse TotalReadoutTime in seconds."
+                },
+                "topup_config": {
+                    "type": "string",
+                    "default": "b02b0.cnf",
+                    "description": "Topup configuration file available inside the process container."
+                },
+                "topup_run_qc": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Generate topup and eddy quality-control visualizations."
+                }
+            }
+        },
         "reconst_options": {
             "title": "Reconstruction options",
             "type": "object",
@@ -201,6 +238,9 @@
         },
         {
             "$ref": "#/$defs/skip_steps_options"
+        },
+        {
+            "$ref": "#/$defs/topup_options"
         },
         {
             "$ref": "#/$defs/reconst_options"
