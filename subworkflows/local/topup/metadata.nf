@@ -44,7 +44,13 @@ def topupAcquisition(image, String directionDefault, readoutDefault, String subj
 }
 
 def prepareTopupInputs(Map meta, dwi, settings, logger) {
-    def (reverse, reverseBval, reverseBvec) = discoverReverse(meta, dwi)
+    def reverseInputs
+    try {
+        reverseInputs = discoverReverse(meta, dwi)
+    } catch (java.lang.reflect.InvocationTargetException e) {
+        throw e.cause
+    }
+    def (reverse, reverseBval, reverseBvec) = reverseInputs
     def forward = topupAcquisition(dwi, settings.topup_forward_phase_encoding, settings.topup_forward_readout, meta.id, 'forward', logger)
     def backward = topupAcquisition(reverse, settings.topup_reverse_phase_encoding, settings.topup_reverse_readout, meta.id, 'reverse', logger)
     if (!(forward.direction in ['i', 'j', 'k'])) {

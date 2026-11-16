@@ -20,6 +20,7 @@ class ConfigurationTests(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         for expected in (
+            "params.run_topup = false",
             "params.topup_forward_phase_encoding = null",
             "params.topup_forward_readout = null",
             "params.topup_reverse_phase_encoding = null",
@@ -31,6 +32,8 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_topup_schema_group(self):
         schema = json.loads((ROOT / "nextflow_schema.json").read_text())
+        run_topup = schema["$defs"]["skip_steps_options"]["properties"]["run_topup"]
+        self.assertIs(run_topup["default"], False)
         self.assertIn({"$ref": "#/$defs/topup_options"}, schema["allOf"])
         properties = schema["$defs"]["topup_options"]["properties"]
         self.assertEqual(properties["topup_forward_phase_encoding"]["enum"], ["i", "j", "k"])

@@ -78,6 +78,11 @@
                     "description": "Set it to false if you don't want to use eddy correction.",
                     "fa_icon": "fas fa-brain"
                 },
+                "run_topup": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run topup before eddy using a reverse-phase acquisition; requires run_eddy."
+                },
                 "run_n4": {
                     "type": "boolean",
                     "default": true,

@@ -1,6 +1,8 @@
 #!/usr/bin/env nextflow
 include { DENOISING_MPPCA } from './modules/nf-neuro/denoising/mppca/main.nf'
 include { PREPROC_SINGLEEDDY } from './modules/local/preproc/singleeddy/main.nf'
+include { TOPUP_EDDY } from './subworkflows/local/topup/main.nf'
+include { forwardInputs } from './subworkflows/local/topup/discovery.nf'
 include { UTILS_EXTRACTB0 } from './modules/nf-neuro/utils/extractb0/main.nf'
 include { NNUNET } from './subworkflows/local/nnunet/'
 include { BET } from './subworkflows/local/bet/main.nf'
@@ -31,6 +33,29 @@ include { MOUSE_COMBINESTATS as COMBINESTATS_MERGED} from './modules/local/mouse
 include { QC_MULTIQC } from "./modules/nf-neuro/qc/multiqc/main.nf"
 include { PRE_QC } from './modules/local/mouse/preqc/main.nf'
 
+def topupEnabled(value, String name) {
+    if (value instanceof Boolean) {
+        return value
+    }
+    if (value instanceof String && value.toLowerCase() in ['true', 'false']) {
+        return value.toBoolean()
+    }
+    throw new IllegalArgumentException("${name} must be true or false, got '${value}'")
+}
+
+def topupB0Threshold(value) {
+    int threshold
+    try {
+        threshold = Integer.parseInt(value.toString())
+    } catch (NumberFormatException | NullPointerException e) {
+        throw new IllegalArgumentException("b0_threshold must be a positive integer when run_topup is enabled", e)
+    }
+    if (threshold <= 0) {
+        throw new IllegalArgumentException("b0_threshold must be a positive integer when run_topup is enabled")
+    }
+    threshold
+}
+
 
 workflow get_data {
     main:
@@ -58,9 +83,17 @@ workflow get_data {
         }
         input = file(params.input)
         // ** Loading all files. ** //
-        dwi_channel = Channel.fromFilePairs("$input/**/*dwi.{nii.gz,bval,bvec}", size: 3, flat: true)
-                        { it.parent.name }
-                        .map{ sid, bvals, bvecs, dwi -> [ [id: sid], dwi, bvals, bvecs ] } // Reordering the inputs.
+        if (topupEnabled(params.run_topup, 'run_topup')) {
+            dwi_channel = Channel.fromPath("$input/**/*dwi.{nii.gz,bval,bvec}")
+                .map { path -> [path.parent.name, path] }
+                .groupTuple()
+                .map { sid, files -> forwardInputs(sid, files) }
+                .ifEmpty { error "No forward DWI inputs found in ${input}" }
+        } else {
+            dwi_channel = Channel.fromFilePairs("$input/**/*dwi.{nii.gz,bval,bvec}", size: 3, flat: true)
+                            { it.parent.name }
+                            .map{ sid, bvals, bvecs, dwi -> [ [id: sid], dwi, bvals, bvecs ] } // Reordering the inputs.
+        }
 
         mask_channel = Channel.fromPath("$input/**/*mask.nii.gz")
                         .map { mask_file -> def sid = mask_file.parent.name
@@ -90,16 +123,28 @@ workflow {
 
     log.warn('During the first execution, sf-mouse may take some time to download the necessary modules.')
     log.info("Uses GPU: $params.use_gpu")
+    do_topup = topupEnabled(params.run_topup, 'run_topup')
+    do_eddy = topupEnabled(params.run_eddy, 'run_eddy')
+    if (do_topup) {
+        topupEnabled(params.topup_run_qc, 'topup_run_qc')
+        topupEnabled(params.use_gpu, 'use_gpu')
+        topupB0Threshold(params.b0_threshold)
+    }
     // Define channel for multiqc files
     ch_multiqc_files = Channel.empty()
     ch_multiqc_config = Channel.fromPath("$projectDir/assets/multiqc_config.yml", checkIfExists: true)
 
-    // ** Now call your input workflow to fetch your files ** //
-    data = get_data()
-
     if ( params.use_fodf_for_tracking && ! params.run_tracking ) {
         error "The parameter use_fodf_for_tracking cannot be enabled if run_tracking is disabled."
     }
+    if ( do_topup && !do_eddy ) {
+        error "The parameter run_topup requires run_eddy."
+    }
+    if ( do_topup && !params.topup_config ) {
+        error "The parameter topup_config must name a configuration available inside the topup container."
+    }
+    // ** Now call your input workflow to fetch your files ** //
+    data = get_data()
 
     ch_dwi_bvalbvec = data.dwi
         .multiMap { meta, dwi, bval, bvec ->
@@ -123,6 +168,10 @@ workflow {
             bvs_after_preqc = PRE_QC.out.bvs
             
         }
+        else if (do_topup) {
+            ch_after_preqc = ch_dwi_bvalbvec.dwi
+            bvs_after_preqc = ch_dwi_bvalbvec.bvs_files
+        }
         else {
             ch_after_preqc = Channel.empty()
             bvs_after_preqc = Channel.empty()
@@ -144,7 +193,12 @@ workflow {
     }
 
     ch_eddy = ch_after_denoising.join(bvs_after_preqc)
-    if (params.run_eddy){
+    if (do_topup) {
+        TOPUP_EDDY(data.dwi, ch_eddy, file("${projectDir}/modules/local/preproc/validatereverse/validate_reverse_dwi.py", checkIfExists: true))
+        ch_after_eddy = TOPUP_EDDY.out.dwi
+        ch_multiqc_files = ch_multiqc_files.mix(TOPUP_EDDY.out.qc)
+    }
+    else if (do_eddy){
         PREPROC_SINGLEEDDY(ch_eddy)
         ch_after_eddy = PREPROC_SINGLEEDDY.out.dwi_corrected.join(
             PREPROC_SINGLEEDDY.out.bval_corrected).join(
