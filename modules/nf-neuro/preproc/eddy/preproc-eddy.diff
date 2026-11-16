@@ -1,0 +1,21 @@
+Changes in component 'nf-neuro/preproc/eddy'
+'modules/nf-neuro/preproc/eddy/meta.yml' is unchanged
+Changes in 'preproc/eddy/main.nf':
+--- modules/nf-neuro/preproc/eddy/main.nf
++++ modules/nf-neuro/preproc/eddy/main.nf
+@@ -119,7 +119,7 @@
+     nb_nan=\$(mrcalc ${prefix}__dwi_corrected.nii.gz  -isnan - | mrstats - -quiet -output count -ignorezero -allvolumes)
+     nan_percentage=\$(awk "BEGIN {print \${nb_nan} * 100 / \${nb_voxels}}")
+ 
+-    if [[ \${nan_percentage} -gt 0 ]];
++    if awk -v percentage="\${nan_percentage}" 'BEGIN { exit !(percentage > 0) }';
+     then
+         echo "Warning: \${nan_percentage}% of voxels in the brain mask are NaN after eddy correction."
+         mrcalc ${prefix}__dwi_corrected.nii.gz -finite ${prefix}__dwi_corrected.nii.gz 0.0 -if ${prefix}__dwi_corrected.nii.gz -force
+
+'modules/nf-neuro/preproc/eddy/environment.yml' is unchanged
+'modules/nf-neuro/preproc/eddy/tests/main.nf.test.snap' is unchanged
+'modules/nf-neuro/preproc/eddy/tests/main.nf.test' is unchanged
+'modules/nf-neuro/preproc/eddy/tests/tags.yml' is unchanged
+'modules/nf-neuro/preproc/eddy/tests/nextflow.config' is unchanged
+************************************************************

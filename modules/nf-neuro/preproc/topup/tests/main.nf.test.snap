@@ -1,0 +1,105 @@
+{
+    "topup - stub-run": {
+        "content": [
+            [
+                "versions.yml:md5,cbd051bfcfbf2c10cd5499c03332d443"
+            ]
+        ],
+        "meta": {
+            "nf-test": "0.9.3",
+            "nextflow": "25.10.2"
+        },
+        "timestamp": "2026-02-26T22:19:39.935952679"
+    },
+    "topup - AP DWI+sbref | PA DWI+sbref": {
+        "content": [
+            "test__corrected_b0s.nii.gz",
+            "topup_results_fieldcoef.nii.gz",
+            "topup_results_movpar.txt",
+            "test__rev_b0_warped.nii.gz",
+            [
+                [
+                    {
+                        "id": "test",
+                        "single_end": false,
+                        "dir": "y",
+                        "readout": 0.062
+                    },
+                    "test__rev_b0_mean.nii.gz:md5,a0c63d7a8a234d85eeb63045ae2a8f60"
+                ]
+            ],
+            [
+                [
+                    {
+                        "id": "test",
+                        "single_end": false,
+                        "dir": "y",
+                        "readout": 0.062
+                    },
+                    "test__b0_mean.nii.gz:md5,f50e652bcdd1d45f7a4c592df7eb851a"
+                ]
+            ],
+            "test__b0_topup_mqc.gif",
+            "test__rev_b0_topup_mqc.gif",
+            [
+                "versions.yml:md5,0d2b497df1c035d6cf2249971a843be0"
+            ]
+        ],
+        "meta": {
+            "nf-test": "0.9.3",
+            "nextflow": "25.10.2"
+        },
+        "timestamp": "2026-05-05T07:41:24.661738077"
+    },
+    "topup - AP DWI | PA sbref": {
+        "content": [
+            "test1__corrected_b0s.nii.gz",
+            "topup_results_fieldcoef.nii.gz",
+            "topup_results_movpar.txt",
+            "test1__rev_b0_warped.nii.gz",
+            [
+                [
+                    {
+                        "id": "test1",
+                        "single_end": false
+                    },
+                    "test1__rev_b0_mean.nii.gz:md5,a0c63d7a8a234d85eeb63045ae2a8f60"
+                ],
+                [
+                    {
+                        "id": "test2",
+                        "single_end": false
+                    },
+                    "test2__rev_b0_mean.nii.gz:md5,a0c63d7a8a234d85eeb63045ae2a8f60"
+                ]
+            ],
+            [
+                [
+                    {
+                        "id": "test1",
+                        "single_end": false
+                    },
+                    "test1__b0_mean.nii.gz:md5,91288914a80e7866ef8b08a363d617f9"
+                ],
+                [
+                    {
+                        "id": "test2",
+                        "single_end": false
+                    },
+                    "test2__b0_mean.nii.gz:md5,91288914a80e7866ef8b08a363d617f9"
+                ]
+            ],
+            "test1__b0_topup_mqc.gif",
+            "test1__rev_b0_topup_mqc.gif",
+            [
+                "versions.yml:md5,0d2b497df1c035d6cf2249971a843be0",
+                "versions.yml:md5,0d2b497df1c035d6cf2249971a843be0"
+            ]
+        ],
+        "meta": {
+            "nf-test": "0.9.3",
+            "nextflow": "25.10.2"
+        },
+        "timestamp": "2026-02-26T22:19:31.581871877"
+    }
+}

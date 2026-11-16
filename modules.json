@@ -46,6 +46,21 @@
                             "modules"
                         ]
                     },
+                    "preproc/eddy": {
+                        "branch": "main",
+                        "git_sha": "98234c97094e4632b5c910141ae34c779196b2fb",
+                        "installed_by": [
+                            "modules"
+                        ],
+                        "patch": "modules/nf-neuro/preproc/eddy/preproc-eddy.diff"
+                    },
+                    "preproc/topup": {
+                        "branch": "main",
+                        "git_sha": "98234c97094e4632b5c910141ae34c779196b2fb",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
                     "qc/multiqc": {
                         "branch": "main",
                         "git_sha": "a7ff2bbe8248fbddbe543c1e8ecb981bf2ceee47",
