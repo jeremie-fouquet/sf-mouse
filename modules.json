@@ -59,7 +59,8 @@
                         "git_sha": "98234c97094e4632b5c910141ae34c779196b2fb",
                         "installed_by": [
                             "modules"
-                        ]
+                        ],
+                        "patch": "modules/nf-neuro/preproc/topup/preproc-topup.diff"
                     },
                     "qc/multiqc": {
                         "branch": "main",

@@ -1,0 +1,83 @@
+Changes in component 'nf-neuro/preproc/topup'
+Changes in 'preproc/topup/main.nf':
+--- modules/nf-neuro/preproc/topup/main.nf
++++ modules/nf-neuro/preproc/topup/main.nf
+@@ -6,7 +6,7 @@
+ 
+     input:
+         tuple val(meta), path(dwi), path(bval), path(bvec), path(b0), path(rev_dwi), path(rev_bval), path(rev_bvec), path(rev_b0)
+-        val config_topup
++        tuple val(config_topup), path(config_topup_file, name: 'sfmouse_topup_custom.cnf')
+ 
+     output:
+         tuple val(meta), path("*__corrected_b0s.nii.gz"), emit: topup_corrected_b0s
+@@ -25,7 +25,7 @@
+     def prefix = task.ext.prefix ?: "${meta.id}"
+ 
+     def prefix_topup = task.ext.prefix_topup ?: ""
+-    config_topup = config_topup ?: task.ext.default_config_topup
++    config_topup = config_topup_file ?: (config_topup ?: task.ext.default_config_topup)
+     def encoding = meta.dir ?: (task.ext.encoding ?: "")
+     def readout = meta.readout ?: (task.ext.readout ?: "")
+     def b0_thr_extract_b0 = task.ext.b0_thr_extract_b0 ?: ""
+
+Changes in 'preproc/topup/meta.yml':
+--- modules/nf-neuro/preproc/topup/meta.yml
++++ modules/nf-neuro/preproc/topup/meta.yml
+@@ -76,11 +76,14 @@
+         pattern: "*.{nii,nii.gz}"
+         ontologies:
+           - edam: http://edamontology.org/format_4001 # NIFTI format
+-  - config_topup:
+-      type: file
+-      description: topup config file. See https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/topup/TopupUsersGuide#Configuration_files
+-      pattern: "*cnf"
+-      ontologies: []
++  - - config_topup:
++        type: string
++        description: Name of a topup configuration available inside the container.
++    - config_topup_file:
++        type: file
++        description: Optional custom topup configuration file, staged as sfmouse_topup_custom.cnf and used instead of config_topup.
++        pattern: "*.cnf"
++        ontologies: []
+ args:
+   - encoding:
+       type: string
+
+Changes in 'preproc/topup/tests/main.nf.test':
+--- modules/nf-neuro/preproc/topup/tests/main.nf.test
++++ modules/nf-neuro/preproc/topup/tests/main.nf.test
+@@ -41,7 +41,7 @@
+                     file("\${test_data_directory}/sub-01_dir-PA_dwi.bval", checkIfExists: true),
+                     file("\${test_data_directory}/sub-01_dir-PA_dwi.bvec", checkIfExists: true),
+                     file("\${test_data_directory}/sub-01_dir-PA_sbref.nii.gz", checkIfExists: true)]}
+-                input[1] = channel.value('')
++                input[1] = channel.value(['', []])
+                 """
+             }
+         }
+@@ -93,7 +93,7 @@
+                             ]
+                         ]
+                     }
+-                input[1] = channel.value('')
++                input[1] = channel.value(['', []])
+                 """
+             }
+         }
+@@ -138,7 +138,7 @@
+                     file("\${test_data_directory}/sub-01_dir-PA_dwi.bval", checkIfExists: true),
+                     file("\${test_data_directory}/sub-01_dir-PA_dwi.bvec", checkIfExists: true),
+                     file("\${test_data_directory}/sub-01_dir-PA_sbref.nii.gz", checkIfExists: true)]}
+-                input[1] = channel.value('')
++                input[1] = channel.value(['', []])
+                 """
+             }
+         }
+
+'modules/nf-neuro/preproc/topup/environment.yml' is unchanged
+'modules/nf-neuro/preproc/topup/tests/main.nf.test.snap' is unchanged
+'modules/nf-neuro/preproc/topup/tests/tags.yml' is unchanged
+'modules/nf-neuro/preproc/topup/tests/nextflow.config' is unchanged
+************************************************************

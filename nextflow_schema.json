@@ -133,6 +133,12 @@
                     "default": "b02b0.cnf",
                     "description": "Topup configuration file available inside the process container."
                 },
+                "topup_config_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Custom topup configuration file, staged for each task and used instead of topup_config."
+                },
                 "topup_run_qc": {
                     "type": "boolean",
                     "default": true,

@@ -68,12 +68,46 @@ nextflow run main.nf -profile docker --input /path/to/input --run_topup \
 
 Defaults are applied independently to missing forward and reverse sidecars,
 and their use is logged by subject. `--topup_config` selects a configuration
-available inside the topup container (default `b02b0.cnf`);
+available inside the topup container (default `b02b0.cnf`). To use a custom
+FSL configuration, pass `--topup_config_file /path/to/rodent.cnf` instead; it
+is staged into each topup task and takes precedence over `--topup_config`.
+The default preset requires even image dimensions; for an odd dimension the
+container also provides `b02b0_1.cnf`.
 `--topup_run_qc false` disables the new QC visualizations. Topup intermediate
 images are published when `lean_output` is disabled; corrected gradient files
 follow the existing preprocessed-gradient naming convention. CPU/GPU selection
 uses the existing `use_gpu` setting and profiles. Use representative acquisition
 metadata rather than copying the example values above.
+
+### Experimental rodent topup candidates
+
+The repository includes [mouse-candidate.cnf](assets/topup/mouse-candidate.cnf)
+and [rat-candidate.cnf](assets/topup/rat-candidate.cnf). Select one explicitly,
+for example from a local checkout:
+
+```bash
+nextflow run main.nf -profile docker --input /path/to/input --run_topup \
+  --topup_config_file "$PWD/assets/topup/mouse-candidate.cnf"
+```
+
+Provide acquisition sidecars or the required phase-encoding and readout
+defaults as described above. These files are **experimental starting points**,
+not validated mouse or rat brain presets and not enabled by default.
+They currently contain the same settings: the FSL `b02b0_1.cnf` schedule,
+with warp knot spacings (`warpres`) and image smoothing (`fwhm`) divided by 10.
+This follows a scaling approach described for
+[rat cervical spinal cord diffusion imaging](https://doi.org/10.3791/52390),
+not a validated brain protocol. All other values, including regularisation
+weights, remain from FSL's
+[b02b0_1.cnf](https://fsl.fmrib.ox.ac.uk/fsl/docs/diffusion/topup/users_guide/config_files.html);
+they have not been independently tuned for either species. Subsampling is 1
+at every level, allowing odd image dimensions but potentially increasing runtime.
+
+The candidates assume correctly specified image voxel sizes in millimetres.
+Topup approximates knot spacing using the voxel grid, so actual spacing can
+differ from the requested value. Before using results for analysis, assess
+correction quality and sensitivity to the configuration using representative
+paired acquisitions, anatomical references and suitable quality-control metrics.
 
 The focused tests are run with `python -m unittest discover -s test/topup -v`
 in an environment with Nextflow, NumPy and nibabel. Set

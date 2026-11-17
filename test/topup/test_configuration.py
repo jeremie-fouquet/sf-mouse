@@ -26,6 +26,7 @@ class ConfigurationTests(unittest.TestCase):
             "params.topup_reverse_phase_encoding = null",
             "params.topup_reverse_readout = null",
             "params.topup_config = 'b02b0.cnf'",
+            "params.topup_config_file = null",
             "params.topup_run_qc = true",
         ):
             self.assertIn(expected, result.stdout)
@@ -41,7 +42,25 @@ class ConfigurationTests(unittest.TestCase):
         for direction in ("forward", "reverse"):
             self.assertEqual(properties[f"topup_{direction}_readout"]["minimum"], 0.00005)
         self.assertEqual(properties["topup_config"]["default"], "b02b0.cnf")
+        self.assertTrue(properties["topup_config_file"]["exists"])
         self.assertIs(properties["topup_run_qc"]["default"], True)
+
+    def test_candidate_configurations(self):
+        schedules = []
+        for species in ("mouse", "rat"):
+            config = ROOT / "assets" / "topup" / f"{species}-candidate.cnf"
+            options = {}
+            for line in config.read_text().splitlines():
+                if line.startswith("--"):
+                    key, value = line.split("=", 1)
+                    options[key] = value
+            for key in ("--warpres", "--subsamp", "--fwhm", "--miter", "--lambda", "--estmov", "--minmet"):
+                self.assertEqual(len(options[key].split(",")), 9, f"{species}: {key}")
+            self.assertEqual(options["--subsamp"], "1,1,1,1,1,1,1,1,1")
+            self.assertEqual(options["--warpres"], "2,1.6,1.4,1.2,1,0.6,0.4,0.4,0.4")
+            self.assertEqual(options["--fwhm"], "0.8,0.6,0.4,0.3,0.3,0.2,0.1,0,0")
+            schedules.append(options)
+        self.assertEqual(*schedules)
 
 
 if __name__ == "__main__":

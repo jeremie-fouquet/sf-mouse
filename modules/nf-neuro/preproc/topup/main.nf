@@ -6,7 +6,7 @@ process PREPROC_TOPUP {
 
     input:
         tuple val(meta), path(dwi), path(bval), path(bvec), path(b0), path(rev_dwi), path(rev_bval), path(rev_bvec), path(rev_b0)
-        val config_topup
+        tuple val(config_topup), path(config_topup_file, name: 'sfmouse_topup_custom.cnf')
 
     output:
         tuple val(meta), path("*__corrected_b0s.nii.gz"), emit: topup_corrected_b0s
@@ -25,7 +25,7 @@ process PREPROC_TOPUP {
     def prefix = task.ext.prefix ?: "${meta.id}"
 
     def prefix_topup = task.ext.prefix_topup ?: ""
-    config_topup = config_topup ?: task.ext.default_config_topup
+    config_topup = config_topup_file ?: (config_topup ?: task.ext.default_config_topup)
     def encoding = meta.dir ?: (task.ext.encoding ?: "")
     def readout = meta.readout ?: (task.ext.readout ?: "")
     def b0_thr_extract_b0 = task.ext.b0_thr_extract_b0 ?: ""

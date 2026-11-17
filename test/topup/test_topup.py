@@ -92,6 +92,54 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("CORRECTED two ", output)
         self.assertEqual(output.count("CORRECTED "), 2)
 
+    def test_custom_config_staged_for_each_subject(self):
+        self.create_stub_inputs()
+        config = self.root / "custom config.cnf"
+        config.write_text("# custom topup configuration\n--subsamp=1\n")
+        self.run_nextflow(
+            "test/topup/workflow.nf", "-c", str(ROOT / "test/topup/nextflow.config"),
+            "-stub-run", "--input", str(self.root / "input"),
+            "--topup_config", "b02b0_4.cnf", "--topup_config_file", str(config),
+        )
+        staged = list((self.root / "work").glob("*/*/sfmouse_topup_custom.cnf"))
+        self.assertEqual(len(staged), 2)
+        for path in staged:
+            self.assertEqual(path.read_text(), config.read_text())
+
+    def test_missing_custom_config_fails(self):
+        self.create_stub_inputs()
+        result = self.invoke_nextflow(
+            "test/topup/workflow.nf", "-c", str(ROOT / "test/topup/nextflow.config"),
+            "-stub-run", "--input", str(self.root / "input"),
+            "--topup_config_file", str(self.root / "missing.cnf"),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing.cnf", result.stdout + result.stderr)
+
+    def test_changing_custom_config_invalidates_cached_topup(self):
+        self.create_stub_inputs()
+        config = self.root / "custom.cnf"
+        config.write_text("# first configuration\n")
+        args = (
+            "-c", str(ROOT / "test/topup/nextflow.config"), "-stub-run",
+            "--input", str(self.root / "input"), "--topup_config_file", str(config),
+        )
+        self.run_nextflow("test/topup/workflow.nf", *args)
+        self.assertEqual(len(list((self.root / "work").glob("*/*/sfmouse_topup_custom.cnf"))), 2)
+        config.write_text("# changed configuration with a different size\n")
+        self.run_nextflow("test/topup/workflow.nf", "-resume", *args)
+        self.assertEqual(len(list((self.root / "work").glob("*/*/sfmouse_topup_custom.cnf"))), 4)
+
+    def test_directory_custom_config_fails(self):
+        self.create_stub_inputs()
+        result = self.invoke_nextflow(
+            "test/topup/workflow.nf", "-c", str(ROOT / "test/topup/nextflow.config"),
+            "-stub-run", "--input", str(self.root / "input"),
+            "--topup_config_file", str(self.root),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("topup_config_file must be a regular file", result.stdout + result.stderr)
+
     def test_missing_reverse_image_fails(self):
         self.create_stub_inputs()
         (self.root / "input" / "two" / "sample_dwi_reverse.nii.gz").unlink()
@@ -123,10 +171,10 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("Join mismatch", result.stdout + result.stderr)
         self.assertIn("id:two", result.stdout + result.stderr)
 
-    def run_real_synthetic(self, with_reverse_gradients):
+    def run_real_synthetic(self, with_reverse_gradients, custom_config=False, candidate=None, voxel_size=1):
         directory = self.root / "input" / "subject"
         directory.mkdir(parents=True)
-        grid = np.indices((16, 16, 16))
+        grid = np.indices((16, 16, 15) if candidate else (16, 16, 16))
         radius = sum((axis - 7.5) ** 2 for axis in grid)
         b0 = (1000 * np.exp(-radius / 25)).astype(np.float32)
         dwi = np.stack([b0] + [b0 * (0.65 + 0.02 * i) for i in range(8)], axis=-1)
@@ -135,8 +183,9 @@ class WorkflowTests(unittest.TestCase):
         if with_reverse_gradients:
             reverse_volumes.append(9 * reverse_b0)
         reverse = np.stack(reverse_volumes, axis=-1)
-        nib.save(nib.Nifti1Image(dwi, np.eye(4)), directory / "sample_dwi.nii.gz")
-        nib.save(nib.Nifti1Image(reverse, np.eye(4)), directory / "sample_dwi_reverse.nii.gz")
+        affine = np.diag([voxel_size, voxel_size, voxel_size, 1])
+        nib.save(nib.Nifti1Image(dwi, affine), directory / "sample_dwi.nii.gz")
+        nib.save(nib.Nifti1Image(reverse, affine), directory / "sample_dwi_reverse.nii.gz")
         (directory / "sample_dwi.bval").write_text("0 " + " ".join(["1000"] * 8) + "\n")
         directions = np.array([
             [0, 1, 0, 0, 1, 1, 0, 1, -1],
@@ -148,10 +197,33 @@ class WorkflowTests(unittest.TestCase):
         if with_reverse_gradients:
             (directory / "sample_dwi_reverse.bval").write_text("0 0 1000\n")
             (directory / "sample_dwi_reverse.bvec").write_text("0 0 1\n0 0 0\n0 0 0\n")
+        preset_name = "b02b0.cnf" if with_reverse_gradients else "b02b0_1.cnf"
+        config_args = ["--topup_config", preset_name]
+        if custom_config:
+            preset = subprocess.run(
+                ["docker", "run", "--rm", "--entrypoint", "cat", "scilus/scilus:2.2.2",
+                 "/fsl/etc/flirtsch/b02b0_1.cnf"],
+                capture_output=True, text=True, check=True, timeout=60,
+            ).stdout
+            config = self.root / "custom config.cnf"
+            config.write_text(preset.replace(
+                "--miter=5,5,5,5,5,10,10,20,20", "--miter=1,1,1,1,1,1,1,1,1"
+            ))
+            config_args += ["--topup_config_file", str(config)]
+        elif candidate:
+            config = ROOT / "assets" / "topup" / candidate
+            config_args += ["--topup_config_file", str(config)]
         output = self.run_nextflow(
             "test/topup/workflow.nf", "-c", str(ROOT / "test/topup/nextflow.config"),
             "-with-docker", "scilus/scilus:2.2.2", "--input", str(self.root / "input"),
+            *config_args,
         )
+        topup_scripts = list((self.root / "work").glob("*/*/topup.sh"))
+        self.assertEqual(len(topup_scripts), 1)
+        expected_config = "sfmouse_topup_custom.cnf" if custom_config or candidate else preset_name
+        self.assertIn(expected_config, topup_scripts[0].read_text())
+        if custom_config or candidate:
+            self.assertEqual((topup_scripts[0].parent / expected_config).read_text(), config.read_text())
         corrected = next(line.split() for line in output.splitlines() if line.startswith("CORRECTED "))
         reverse_mean = next(line.split() for line in output.splitlines() if line.startswith("REVERSE_MEAN "))
         self.assertEqual(nib.load(corrected[2]).shape, dwi.shape)
@@ -166,6 +238,18 @@ class WorkflowTests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get("SFMOUSE_REAL_TOPUP_TEST") == "1", "requires Docker imaging container")
     def test_real_synthetic_reverse_dwi(self):
         self.run_real_synthetic(True)
+
+    @unittest.skipUnless(os.environ.get("SFMOUSE_REAL_TOPUP_TEST") == "1", "requires Docker imaging container")
+    def test_real_synthetic_custom_config(self):
+        self.run_real_synthetic(False, custom_config=True)
+
+    @unittest.skipUnless(os.environ.get("SFMOUSE_REAL_TOPUP_TEST") == "1", "requires Docker imaging container")
+    def test_real_synthetic_mouse_candidate(self):
+        self.run_real_synthetic(False, candidate="mouse-candidate.cnf", voxel_size=0.2)
+
+    @unittest.skipUnless(os.environ.get("SFMOUSE_REAL_TOPUP_TEST") == "1", "requires Docker imaging container")
+    def test_real_synthetic_rat_candidate(self):
+        self.run_real_synthetic(False, candidate="rat-candidate.cnf", voxel_size=0.5)
 
 
 if __name__ == "__main__":

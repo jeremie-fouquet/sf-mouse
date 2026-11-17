@@ -140,8 +140,8 @@ workflow {
     if ( do_topup && !do_eddy ) {
         error "The parameter run_topup requires run_eddy."
     }
-    if ( do_topup && !params.topup_config ) {
-        error "The parameter topup_config must name a configuration available inside the topup container."
+    if ( do_topup && !params.topup_config && !params.topup_config_file ) {
+        error "Provide topup_config for a container preset or topup_config_file for a custom configuration."
     }
     // ** Now call your input workflow to fetch your files ** //
     data = get_data()

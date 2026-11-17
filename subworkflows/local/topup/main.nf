@@ -18,11 +18,15 @@ workflow TOPUP_EDDY {
         .map { meta, dwi, bval, bvec, reverse, rev_bval, rev_bvec, direction, readout ->
             [meta + [dir: direction, readout: readout], dwi, bval, bvec, reverse, rev_bval, rev_bval ? rev_bvec : []]
         }
+    config_file = params.topup_config_file ? file(params.topup_config_file, checkIfExists: true) : []
+    if (config_file && !java.nio.file.Files.isRegularFile(config_file)) {
+        error "topup_config_file must be a regular file: ${params.topup_config_file}"
+    }
     PREPROC_TOPUP(
         ch_topup_inputs.map { meta, dwi, bval, bvec, reverse, rev_bval, rev_bvec ->
             [meta, dwi, bval, bvec, [], rev_bval ? reverse : [], rev_bval, rev_bvec, rev_bval ? [] : reverse]
         },
-        params.topup_config
+        [params.topup_config, config_file]
     )
     ch_eddy = ch_topup_inputs
         .map { meta, dwi, bval, bvec, reverse, rev_bval, rev_bvec -> [meta, dwi, bval, bvec] }
