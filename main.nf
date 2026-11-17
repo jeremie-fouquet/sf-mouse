@@ -90,8 +90,7 @@ workflow get_data {
                 .map { sid, files -> forwardInputs(sid, files) }
                 .ifEmpty { error "No forward DWI inputs found in ${input}" }
         } else {
-            dwi_channel = Channel.fromFilePairs("$input/**/*dwi.{nii.gz,bval,bvec}", size: 3, flat: true)
-                            { it.parent.name }
+            dwi_channel = Channel.fromFilePairs("$input/**/*dwi.{nii.gz,bval,bvec}", size: 3, flat: true) { it.parent.name }
                             .map{ sid, bvals, bvecs, dwi -> [ [id: sid], dwi, bvals, bvecs ] } // Reordering the inputs.
         }
 

@@ -117,6 +117,10 @@ paired acquisition remains necessary to assess correction quality.
 The installed eddy module carries a small local patch so fractional NaN
 percentages trigger its existing warning and cleanup.
 
+Configuration and input-discovery regression tests can be run with
+`python -m unittest discover -s test -v`. The resource tests exercise local
+execution and simulate SLURM submission; they do not require a SLURM cluster.
+
 
 ### Documentation:
 --------------
